@@ -25,7 +25,7 @@ namespace Age_of_War
 		public const int MAX_EXPANSIONS = 3;
 		public const int EXPANSION_COST = 3000;
 
-		public int PlayerGold = 30000;  // Startguld
+		public int PlayerGold = 300;  // Startguld
 		public int EnemyGold = 300;   // Startguld för fiende
 		public int IncomePerSecond = 0;  // Ingen passiv inkomst längre
 		public int PlayerScore = 0;
