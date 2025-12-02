@@ -492,7 +492,7 @@ foreach (var turret in PlayerTurrets)
  }
     }
 
-// Skjut på närmaste fiende
+    // Skjut på närmaste fiende
     if (nearestEnemy != null && turret.CanAttack)
     {
   Projectiles.Add(new Projectile(
@@ -852,20 +852,21 @@ public void UpdateUltimate(int deltaTime)
     
     // Uppdatera fallande stenar
  for (int i = FallingRocks.Count - 1; i >= 0; i--)
-    {
+ {
   var rock = FallingRocks[i];
         rock.Update();
      
-    // Kolla om stenen träffar marken
+  // Kolla om stenen träffar marken
   if (rock.Y >= BattlefieldY)
 {
 rock.IsActive = false;
-    FallingRocks.RemoveAt(i);
+FallingRocks.RemoveAt(i);
       continue;
     }
    
-      // Kolla om stenen träffar fiendeenheter - sätter HP till 0 för dödsanimation
-   for (int j = EnemyUnits.Count - 1; j >= 0; j++)
+ // Kolla om stenen träffar fiendeenheter - sätter HP till 0 för dödsanimation
+   bool rockHitEnemy = false;
+   for (int j = EnemyUnits.Count - 1; j >= 0; j--)
     {
    var enemy = EnemyUnits[j];
      if (Utils.Intersects(rock.Hitbox, enemy.Hitbox))
@@ -873,7 +874,7 @@ rock.IsActive = false;
   // Sätt HP till 0 istället för instant kill så dödsanimation kan spelas
          if (!enemy.IsDying)  // Träffa bara levande enheter
      {
-     enemy.HP = 0;  // Detta triggar dödsanimationen i nästa Update()
+  enemy.HP = 0;  // Detta triggar dödsanimationen i nästa Update()
   
      // Ge 1.25x av köppris (avrundat uppåt)
 		int unitCost = enemy is Soldier ? 50 : enemy is RangedUnit ? 80 : enemy is CavalryUnit ? 200 : 50;
@@ -883,12 +884,18 @@ rock.IsActive = false;
 		// Spawna guld-popup
 		GoldPopups.Add(new GoldPopup(enemy.PositionX, enemy.PositionY - 30, goldReward));
 	  
-		   // Ta bort stenen
+		   // Markera att stenen träffade
 	  rock.IsActive = false;
-	 FallingRocks.RemoveAt(i);
+	  rockHitEnemy = true;
 		break;
 			 }
 	 }
+		}
+		
+		// Ta bort stenen om den träffade en fiende
+		if (rockHitEnemy)
+		{
+		    FallingRocks.RemoveAt(i);
 		}
 		}
 }
