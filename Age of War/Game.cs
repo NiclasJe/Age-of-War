@@ -9,6 +9,8 @@ namespace Age_of_War
 		public List<Unit> PlayerUnits = new();
 		public List<Unit> EnemyUnits = new();
 		public List<Projectile> Projectiles = new();
+		public List<BloodParticle> BloodParticles = new List<BloodParticle>();  // Blodpartiklar
+		public List<GoldPopup> GoldPopups = new List<GoldPopup>();  // Guld-popups
 		public Base PlayerBase;
 		public Base EnemyBase;
 
@@ -117,10 +119,15 @@ namespace Age_of_War
 				unit.IsBlocked = false;
 
 			// Andra: Kontrollera kollisioner mellan egna enheter (blockering)
+			// Hoppa över döende enheter
 			for (int i = 0; i < PlayerUnits.Count; i++)
 			{
+				if (PlayerUnits[i].IsDying) continue;  // Döende enheter kolliderar inte
+				
 				for (int j = i + 1; j < PlayerUnits.Count; j++)
 				{
+					if (PlayerUnits[j].IsDying) continue;  // Döende enheter kolliderar inte
+					
 					if (Utils.Intersects(PlayerUnits[i].Hitbox, PlayerUnits[j].Hitbox))
 					{
 						// Den bakre enheten blockeras
@@ -134,8 +141,12 @@ namespace Age_of_War
 
 			for (int i = 0; i < EnemyUnits.Count; i++)
 			{
+				if (EnemyUnits[i].IsDying) continue;  // Döende enheter kolliderar inte
+				
 				for (int j = i + 1; j < EnemyUnits.Count; j++)
 				{
+					if (EnemyUnits[j].IsDying) continue;  // Döende enheter kolliderar inte
+					
 					// Ökat avstånd för fiendens enheter så HP-barer syns bättre
 					float distance = Math.Abs(EnemyUnits[i].PositionX - EnemyUnits[j].PositionX);
 					if (distance < 45) // Extra avstånd mellan fiendens enheter
@@ -150,8 +161,11 @@ namespace Age_of_War
 			}
 
 			// Tredje: Kontrollera kollisioner med fiendeenheter och baser
+			// Hoppa över döende enheter
 			foreach (var p in PlayerUnits)
 			{
+				if (p.IsDying) continue;  // Döende enheter deltar inte i strid
+				
 				// Kolla kollision med fiendebas
 				if (Utils.Intersects(p.Hitbox, EnemyBase.Hitbox))
 				{
@@ -161,10 +175,12 @@ namespace Age_of_War
 				// Kolla kollision med fiendeenheter
 				foreach (var e in EnemyUnits)
 				{
+					if (e.IsDying) continue;  // Döende enheter deltar inte i strid
+					
 					// Ökat avstånd för strid - enheter stannar längre ifrån varandra
 					float combatDistance = Math.Abs(p.PositionX - e.PositionX);
 
-					// Närstridssoldater stannar på 40 pixlar avstånd (minskat från 50)
+					// Närstridssoldater stannar på 40 pixlar avstånd
 					if ((p is Soldier || p is CavalryUnit || p is TankUnit) &&
 						 (e is Soldier || e is CavalryUnit || e is TankUnit))
 					{
@@ -174,10 +190,10 @@ namespace Age_of_War
 							e.IsBlocked = true;
 						}
 					}
-					// Om någon är ranged, större avstånd
+					// Om någon är ranged, närstridsenhet stannar på 50 pixlar (så de kan slå)
 					else if (p is RangedUnit || e is RangedUnit)
 					{
-						if (combatDistance < 60)
+						if (combatDistance < 50)  // Minskat från 60 till 50
 						{
 							p.IsBlocked = true;
 							e.IsBlocked = true;
@@ -194,6 +210,8 @@ namespace Age_of_War
 
 			foreach (var e in EnemyUnits)
 			{
+				if (e.IsDying) continue;  // Döende enheter deltar inte i strid
+				
 				// Kolla kollision med spelarbas
 				if (Utils.Intersects(e.Hitbox, PlayerBase.Hitbox))
 				{
@@ -212,6 +230,16 @@ namespace Age_of_War
 			{
 				var p = PlayerUnits[i];
 
+				// Ta bort enheter som är färdiga med dödsanimationen
+				if (p.IsFullyDead)
+				{
+					PlayerUnits.RemoveAt(i);
+					continue;
+				}
+				
+				// Hoppa över döende enheter i strid
+				if (p.IsDying) continue;
+
 				// Kolla kollision med fiendebas
 				if (Utils.Intersects(p.Hitbox, EnemyBase.Hitbox))
 				{
@@ -224,23 +252,31 @@ namespace Age_of_War
 
 				foreach (var e in EnemyUnits)
 				{
+					if (e.IsDying) continue;  // Kan inte attackera döende enheter
+					
 					float distance = System.Math.Abs(p.PositionX - e.PositionX);
 
-					// Närstridssoldater (Soldier, CavalryUnit, TankUnit) - kan slå på närmare avstånd
-					if ((p is Soldier || p is CavalryUnit || p is TankUnit) &&
-					(e is Soldier || e is CavalryUnit || e is TankUnit))
+					// Närstridssoldater (Soldier, CavalryUnit, TankUnit) - kan slå på längre avstånd
+					if (p is Soldier || p is CavalryUnit || p is TankUnit)
 					{
-						if (distance < 60)  // Ökat från 55 till 60 så de når varandra
+						if (distance < 70)  // Ökat från 60 till 70 så melee når ranged
 						{
 							if (p.CanAttack)
 							{
 								e.HP -= p.Damage;
 								p.ResetAttackTimer();
+								
+								// Skapa blodstänk när fienden tar skada
+								SpawnBloodParticles(e.PositionX, e.PositionY - 25, 5);
 							}
-							if (e.CanAttack)
+							// Bara om båda är melee slår de tillbaka direkt
+							if ((e is Soldier || e is CavalryUnit || e is TankUnit) && e.CanAttack)
 							{
 								p.HP -= e.Damage;
 								e.ResetAttackTimer();
+								
+								// Skapa blodstänk när spelaren tar skada
+								SpawnBloodParticles(p.PositionX, p.PositionY - 25, 5);
 							}
 						}
 					}
@@ -258,18 +294,29 @@ namespace Age_of_War
 						}
 					}
 				}
-
-				if (p.IsDead)
-				{
-					PlayerUnits.RemoveAt(i);
-					PlayerScore++;
-					// Fienden har oändligt med guld - ingen anledning att ge mer
-				}
 			}
 
 			for (int i = EnemyUnits.Count - 1; i >= 0; i--)
 			{
 				var e = EnemyUnits[i];
+
+				// Ta bort enheter som är färdiga med dödsanimationen
+				if (e.IsFullyDead)
+				{
+					EnemyUnits.RemoveAt(i);
+					EnemyScore++;
+					// Spelaren får 1.25x av enhetens köppris (avrundat uppåt)
+					int unitCost = e is Soldier ? 50 : e is RangedUnit ? 80 : e is CavalryUnit ? 200 : 50;
+					int goldReward = (int)Math.Ceiling(unitCost * 1.25);
+					PlayerGold += goldReward;
+					
+					// Spawna guld-popup
+					GoldPopups.Add(new GoldPopup(e.PositionX, e.PositionY - 30, goldReward));
+					continue;
+				}
+				
+				// Hoppa över döende enheter i strid
+				if (e.IsDying) continue;
 
 				// Kolla kollision med spelarbas
 				if (Utils.Intersects(e.Hitbox, PlayerBase.Hitbox))
@@ -284,43 +331,38 @@ namespace Age_of_War
 				// Strid med spelarenheter
 				foreach (var p in PlayerUnits)
 				{
+					if (p.IsDying) continue;  // Kan inte attackera döende enheter
+					
 					float distance = System.Math.Abs(p.PositionX - e.PositionX);
 
-					// Närstrid för fiendens melee-enheter - kan slå på närmare avstånd
-					if ((e is Soldier || e is CavalryUnit || e is TankUnit) &&
-   (p is Soldier || p is CavalryUnit || p is TankUnit))
-    {
-        if (distance < 60)  // Ökat från 55 till 60 så de når varandra
-   {
-   if (e.CanAttack)
-            {
-   p.HP -= e.Damage;
-    e.ResetAttackTimer();
-      }
-}
-    }
-    // RangedUnit för fienden
-  else if (e is RangedUnit)
-    {
-   if (distance < 100)
-     {
-       if (e.CanAttack)
-  {
-    // Skapa projektil
-   Projectiles.Add(new Projectile(e.PositionX, e.PositionY - 30, p.PositionX, p.PositionY - 25, false, e.Damage));
-    e.ResetAttackTimer();
-      }
-   }
- }
-}
-
-				if (e.IsDead)
-				{
-					EnemyUnits.RemoveAt(i);
-					EnemyScore++;
-					// Spelaren får guld baserat på enhetstyp
-					int goldReward = e is Soldier ? 50 : e is RangedUnit ? 80 : e is CavalryUnit ? 200 : 50;  // Ändrat från 120 till 200
-					PlayerGold += goldReward;
+					// Närstrid för fiendens melee-enheter - kan slå på längre avstånd
+					if (e is Soldier || e is CavalryUnit || e is TankUnit)
+					{
+						if (distance < 70)  // Ökat från 60 till 70 så melee når ranged
+						{
+							if (e.CanAttack)
+							{
+								p.HP -= e.Damage;
+								e.ResetAttackTimer();
+								
+								// Skapa blodstänk när spelaren tar skada
+								SpawnBloodParticles(p.PositionX, p.PositionY - 25, 5);
+							}
+						}
+					}
+					// RangedUnit för fienden
+					else if (e is RangedUnit)
+					{
+						if (distance < 100)
+						{
+							if (e.CanAttack)
+							{
+								// Skapa projektil
+								Projectiles.Add(new Projectile(e.PositionX, e.PositionY - 30, p.PositionX, p.PositionY - 25, false, e.Damage));
+								e.ResetAttackTimer();
+							}
+						}
+					}
 				}
 			}
 
@@ -343,34 +385,44 @@ namespace Age_of_War
 				{
 				foreach (var e in EnemyUnits)
 			   {
+			       if (e.IsDying) continue;  // Kan inte träffa döende enheter
+			    
 			       if (Utils.Intersects(new Rectangle((int)proj.X - 3, (int)proj.Y - 3, 6, 6), e.Hitbox))
-            {
+    {
     e.HP -= proj.Damage;
    proj.IsActive = false;
-       break;
+       
+    // Skapa blodstänk när fienden träffas av projektil
+       SpawnBloodParticles(proj.X, proj.Y, 8);
+   break;
    }
-     }
+  }
 // Kolla om den träffar fiendebasen
      if (Utils.Intersects(new Rectangle((int)proj.X - 3, (int)proj.Y - 3, 6, 6), EnemyBase.Hitbox))
         {
-    proj.IsActive = false;
+ proj.IsActive = false;
   }
     }
     else
     {
      foreach (var p in PlayerUnits)
         {
+   if (p.IsDying) continue;  // Kan inte träffa döende enheter
+   
    if (Utils.Intersects(new Rectangle((int)proj.X - 3, (int)proj.Y - 3, 6, 6), p.Hitbox))
     {
        p.HP -= proj.Damage;
     proj.IsActive = false;
+    
+    // Skapa blodstänk när spelaren träffas av projektil
+    SpawnBloodParticles(proj.X, proj.Y, 8);
     break;
    }
   }
     // Kolla om den träffar spelarbasen
         if (Utils.Intersects(new Rectangle((int)proj.X - 3, (int)proj.Y - 3, 6, 6), PlayerBase.Hitbox))
-        {
-            proj.IsActive = false;
+    {
+    proj.IsActive = false;
         }
  }
 
@@ -393,9 +445,11 @@ if (PlayerTurret != null)
 
     foreach (var enemy in EnemyUnits)
     {
+   if (enemy.IsDying) continue;  // Hoppa över döende enheter
+ 
         float distance = Math.Abs(enemy.PositionX - PlayerTurret.PositionX);
   if (distance < turretRange && distance < nearestDistance)
-        {
+      {
      nearestEnemy = enemy;
      nearestDistance = distance;
  }
@@ -405,10 +459,10 @@ if (PlayerTurret != null)
     if (nearestEnemy != null && PlayerTurret.CanAttack)
  {
    Projectiles.Add(new Projectile(
-       PlayerTurret.PositionX,
-      PlayerTurret.PositionY - 20,
-      nearestEnemy.PositionX,
-            nearestEnemy.PositionY - 25,
+   PlayerTurret.PositionX,
+ PlayerTurret.PositionY - 20,
+nearestEnemy.PositionX,
+       nearestEnemy.PositionY - 25,
    true,
    PlayerTurret.Damage / 2,
   true));
@@ -421,46 +475,81 @@ foreach (var turret in PlayerTurrets)
 {
     turret.Update(deltaTime);
     
-    // Hitta närmaste fiende inom räckvidd för denna turret
-    Unit nearestEnemy = null;
+ // Hitta närmaste fiende inom räckvidd för denna turret
+  Unit nearestEnemy = null;
     float nearestDistance = float.MaxValue;
     float turretRange = GetTurretRange(turret);
 
-    foreach (var enemy in EnemyUnits)
+ foreach (var enemy in EnemyUnits)
     {
-        float distance = Math.Abs(enemy.PositionX - turret.PositionX);
-        if (distance < turretRange && distance < nearestDistance)
+        if (enemy.IsDying) continue;  // Hoppa över döende enheter
+   
+     float distance = Math.Abs(enemy.PositionX - turret.PositionX);
+     if (distance < turretRange && distance < nearestDistance)
     {
    nearestEnemy = enemy;
-            nearestDistance = distance;
+  nearestDistance = distance;
  }
     }
 
-    // Skjut på närmaste fiende
+// Skjut på närmaste fiende
     if (nearestEnemy != null && turret.CanAttack)
     {
-        Projectiles.Add(new Projectile(
-     turret.PositionX,
-            turret.PositionY - 20,
-      nearestEnemy.PositionX,
-            nearestEnemy.PositionY - 25,
+  Projectiles.Add(new Projectile(
+   turret.PositionX,
+  turret.PositionY - 20,
+ nearestEnemy.PositionX,
+   nearestEnemy.PositionY - 25,
  true,
-     turret.Damage / 2,
+ turret.Damage / 2,
     true));
  turret.ResetAttackTimer();
     }
 }
-        }  // Slut på UpdateUnits
+
+// Uppdatera blodpartiklar
+for (int i = BloodParticles.Count - 1; i >= 0; i--)
+{
+    var particle = BloodParticles[i];
+    particle.Update(deltaTime);
+    
+    if (!particle.IsActive)
+    {
+    BloodParticles.RemoveAt(i);
+    }
+}
+
+// Uppdatera guld-popups
+for (int i = GoldPopups.Count - 1; i >= 0; i--)
+{
+	var popup = GoldPopups[i];
+	popup.Update(deltaTime);
+	
+	if (!popup.IsActive)
+	{
+		GoldPopups.RemoveAt(i);
+	}
+}
+		}  // Slut på UpdateUnits
 
 // Hjälpmetod för att få räckvidd baserat på turret-typ
 private float GetTurretRange(Turret turret)
 {
     if (turret is PremiumTurret)
-        return screenWidth / 2;
+     return screenWidth / 2;
     else if (turret is AdvancedTurret)
      return screenWidth * 0.4f;
     else
  return screenWidth * 0.25f;
+}
+
+// Hjälpmetod för att spawna blodpartiklar
+private void SpawnBloodParticles(float x, float y, int count)
+{
+    for (int i = 0; i < count; i++)
+    {
+    BloodParticles.Add(new BloodParticle(x, y));
+    }
 }
 
 public void UpdateEnemySpawn()
@@ -468,22 +557,22 @@ public void UpdateEnemySpawn()
     enemySpawnTimer += 33;
     
     if (enemySpawnTimer >= nextEnemySpawnDelay)
-    {
+  {
         if (EnemySpawnQueue.Count + (currentEnemySpawn != null ? 1 : 0) < 3)
         {
 int t = enemySpawnRandom.Next(3);
-            Type unitType = t switch
+     Type unitType = t switch
           {
         0 => typeof(Soldier),
    1 => typeof(RangedUnit),
    2 => typeof(CavalryUnit),
-         _ => typeof(Soldier)
-            };
+     _ => typeof(Soldier)
+       };
    
          QueueUnitSpawn(unitType, false);
-        }
+ }
   
-        enemySpawnTimer = 0;
+   enemySpawnTimer = 0;
         nextEnemySpawnDelay = enemySpawnRandom.Next(1500, 4000);
     }
 }
@@ -499,7 +588,7 @@ public void QueueUnitSpawn(Type unitType, bool isPlayer)
     {
         if (PlayerSpawnQueue.Count + (currentPlayerSpawn != null ? 1 : 0) < 5)
     {
-    PlayerSpawnQueue.Enqueue(queueItem);
+  PlayerSpawnQueue.Enqueue(queueItem);
         }
     }
     else
@@ -511,7 +600,7 @@ public void QueueUnitSpawn(Type unitType, bool isPlayer)
 public void UpdateSpawnQueues(int deltaTime)
 {
     if (currentPlayerSpawn == null && PlayerSpawnQueue.Count > 0)
-    {
+  {
 currentPlayerSpawn = PlayerSpawnQueue.Dequeue();
     }
     
@@ -520,12 +609,12 @@ currentPlayerSpawn = PlayerSpawnQueue.Dequeue();
     currentPlayerSpawn.Update(deltaTime);
  
   if (currentPlayerSpawn.IsReady)
-        {
-     float spawnX = PlayerBase.Hitbox.Left + 20;
-       Unit unit = currentPlayerSpawn.UnitType == typeof(Soldier)
-                ? new Soldier(true, spawnX, BattlefieldY)
-      : currentPlayerSpawn.UnitType == typeof(RangedUnit)
-                ? new RangedUnit(true, spawnX, BattlefieldY)
+      {
+   float spawnX = PlayerBase.Hitbox.Left + 20;
+    Unit unit = currentPlayerSpawn.UnitType == typeof(Soldier)
+     ? new Soldier(true, spawnX, BattlefieldY)
+ : currentPlayerSpawn.UnitType == typeof(RangedUnit)
+        ? new RangedUnit(true, spawnX, BattlefieldY)
       : new CavalryUnit(true, spawnX, BattlefieldY);
     
     PlayerUnits.Add(unit);
@@ -542,28 +631,28 @@ currentPlayerSpawn = PlayerSpawnQueue.Dequeue();
     {
     currentEnemySpawn.Update(deltaTime);
         
-        if (currentEnemySpawn.IsReady)
+      if (currentEnemySpawn.IsReady)
    {
      float spawnX = EnemyBase.Hitbox.Right - 20;
-            bool canSpawn = true;
+       bool canSpawn = true;
     
-            foreach (var existingUnit in EnemyUnits)
-            {
-        if (Math.Abs(existingUnit.PositionX - spawnX) < 100)
-                {
-          canSpawn = false;
+      foreach (var existingUnit in EnemyUnits)
+ {
+     if (Math.Abs(existingUnit.PositionX - spawnX) < 100)
+       {
+        canSpawn = false;
          break;
       }
             }
-          
+   
        if (canSpawn)
-       {
+     {
        Unit unit = currentEnemySpawn.UnitType == typeof(Soldier)
   ? new Soldier(false, spawnX, BattlefieldY)
      : currentEnemySpawn.UnitType == typeof(RangedUnit)
      ? new RangedUnit(false, spawnX, BattlefieldY)
-              : new CavalryUnit(false, spawnX, BattlefieldY);
-    
+  : new CavalryUnit(false, spawnX, BattlefieldY);
+ 
       EnemyUnits.Add(unit);
       currentEnemySpawn = null;
      }
@@ -593,7 +682,7 @@ public void DeactivateTurretPlacement()
 
 public void ActivateTurretSelling()
 {
-    ShowTurretSellHighlight = true;
+ShowTurretSellHighlight = true;
 }
 
 public void DeactivateTurretSelling()
@@ -611,7 +700,7 @@ public bool SellTurret()
     
 PlayerTurret = null;
     ShowTurretSellHighlight = false;
-    
+ 
     return true;
 }
 
@@ -620,13 +709,13 @@ public bool SellTurretAt(Point clickPosition)
     for (int i = PlayerTurrets.Count - 1; i >= 0; i--)
   {
         if (PlayerTurrets[i].Hitbox.Contains(clickPosition))
-    {
+  {
     int refund = PlayerTurrets[i].Cost / 2;
-            PlayerGold += refund;
+  PlayerGold += refund;
         PlayerTurrets.RemoveAt(i);
             ShowTurretSellHighlight = false;
    return true;
-        }
+     }
     }
     return false;
 }
@@ -637,12 +726,12 @@ public bool PlaceTurret(Type turretType, int cost, int specificSlotIndex = -1)
     return false;
     
     int slotIndex = -1;
-    
+
     if (specificSlotIndex >= 0 && specificSlotIndex < TurretSlots.Count)
     {
         var slot = TurretSlots[specificSlotIndex];
         bool occupied = PlayerTurrets.Any(t =>
-        Math.Abs(t.PositionX - (slot.X + slot.Width / 2)) < 5 &&
+      Math.Abs(t.PositionX - (slot.X + slot.Width / 2)) < 5 &&
   Math.Abs(t.PositionY - (slot.Y + slot.Height)) < 5);
       
  if (!occupied)
@@ -660,7 +749,7 @@ if (!occupied)
    {
         slotIndex = i;
          break;
-       }
+ }
         }
   }
     
@@ -671,29 +760,29 @@ if (!occupied)
     float turretX = selectedSlot.X + selectedSlot.Width / 2;
     int turretY = selectedSlot.Y + selectedSlot.Height;
     
-    Turret newTurret = null;
-    if (turretType == typeof(BasicTurret))
+Turret newTurret = null;
+ if (turretType == typeof(BasicTurret))
         newTurret = new BasicTurret(true, turretX, turretY);
     else if (turretType == typeof(AdvancedTurret))
         newTurret = new AdvancedTurret(true, turretX, turretY);
     else if (turretType == typeof(PremiumTurret))
-        newTurret = new PremiumTurret(true, turretX, turretY);
+  newTurret = new PremiumTurret(true, turretX, turretY);
     else
       return false;
   
     PlayerTurrets.Add(newTurret);
     PlayerGold -= cost;
-    ShowTurretSlot = false;
+ ShowTurretSlot = false;
     return true;
 }
 
 public bool ExpandBase()
 {
     if (BaseExpansions >= MAX_EXPANSIONS)
-        return false;
-    
+     return false;
+ 
     if (PlayerGold < EXPANSION_COST)
-        return false;
+  return false;
     
   PlayerGold -= EXPANSION_COST;
     BaseExpansions++;
@@ -708,7 +797,7 @@ public void ActivateUltimate()
      return;
     
     // Beräkna antal stenar och spawn-intervall
-    Random rand = new Random();
+  Random rand = new Random();
     int rockCount = rand.Next(8, 13);  // 8-12 stenar
 
     UltimateRocksToSpawn = rockCount;
@@ -728,9 +817,9 @@ public void UpdateUltimate(int deltaTime)
     if (!UltimateAvailable)
     {
         UltimateCooldown -= deltaTime;
-        if (UltimateCooldown <= 0)
+   if (UltimateCooldown <= 0)
 {
-            UltimateCooldown = 0;
+         UltimateCooldown = 0;
             UltimateAvailable = true;
         }
     }
@@ -743,59 +832,65 @@ public void UpdateUltimate(int deltaTime)
         // Spawna en sten varje intervall
         while (UltimateRocksToSpawn > 0 && UltimateSpawnTimer >= UltimateSpawnInterval)
   {
-            Random rand = new Random();
-            float rockX = rand.Next(100, screenWidth - 100);
+   Random rand = new Random();
+         float rockX = rand.Next(100, screenWidth - 100);
      float rockY = -50 - rand.Next(100);
             
-            FallingRocks.Add(new FallingRock(rockX, rockY));
+   FallingRocks.Add(new FallingRock(rockX, rockY));
     
   UltimateRocksToSpawn--;
-            UltimateSpawnTimer -= UltimateSpawnInterval;
-        }
+  UltimateSpawnTimer -= UltimateSpawnInterval;
+    }
    
-        // Avsluta ultimate när alla stenar har spawnats
+     // Avsluta ultimate när alla stenar har spawnats
         if (UltimateRocksToSpawn <= 0)
         {
     UltimateActive = false;
-            UltimateSpawnTimer = 0;
+          UltimateSpawnTimer = 0;
  }
     }
     
     // Uppdatera fallande stenar
  for (int i = FallingRocks.Count - 1; i >= 0; i--)
     {
-        var rock = FallingRocks[i];
+  var rock = FallingRocks[i];
         rock.Update();
      
-        // Kolla om stenen träffar marken
-        if (rock.Y >= BattlefieldY)
+    // Kolla om stenen träffar marken
+  if (rock.Y >= BattlefieldY)
 {
 rock.IsActive = false;
     FallingRocks.RemoveAt(i);
       continue;
-        }
+    }
    
-        // Kolla om stenen träffar fiendeenheter (instant kill)
-        for (int j = EnemyUnits.Count - 1; j >= 0; j--)
-        {
+      // Kolla om stenen träffar fiendeenheter - sätter HP till 0 för dödsanimation
+   for (int j = EnemyUnits.Count - 1; j >= 0; j++)
+    {
    var enemy = EnemyUnits[j];
      if (Utils.Intersects(rock.Hitbox, enemy.Hitbox))
   {
-         // Instant kill!
-       EnemyUnits.RemoveAt(j);
-             EnemyScore++;
-     
-    // Ge guld
-          int goldReward = enemy is Soldier ? 50 : enemy is RangedUnit ? 80 : enemy is CavalryUnit ? 200 : 50;
-              PlayerGold += goldReward;
-         
-                // Ta bort stenen
-       rock.IsActive = false;
-      FallingRocks.RemoveAt(i);
-      break;
-         }
- }
-    }
+  // Sätt HP till 0 istället för instant kill så dödsanimation kan spelas
+         if (!enemy.IsDying)  // Träffa bara levande enheter
+     {
+     enemy.HP = 0;  // Detta triggar dödsanimationen i nästa Update()
+  
+     // Ge 1.25x av köppris (avrundat uppåt)
+		int unitCost = enemy is Soldier ? 50 : enemy is RangedUnit ? 80 : enemy is CavalryUnit ? 200 : 50;
+		int goldReward = (int)Math.Ceiling(unitCost * 1.25);
+		PlayerGold += goldReward;
+	  
+		// Spawna guld-popup
+		GoldPopups.Add(new GoldPopup(enemy.PositionX, enemy.PositionY - 30, goldReward));
+	  
+		   // Ta bort stenen
+	  rock.IsActive = false;
+	 FallingRocks.RemoveAt(i);
+		break;
+			 }
+	 }
+		}
+		}
 }
 
 // Få cooldown-progress i procent (0-1)

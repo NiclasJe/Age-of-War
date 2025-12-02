@@ -316,6 +316,7 @@ var textSize = g.MeasureString(text, font);
    }
     }
 }
+
 private void ToggleToTurrets()
 {
     showingTurrets = true;
@@ -510,310 +511,469 @@ private void BattlefieldPanel_MouseClick(object sender, MouseEventArgs e)
 private void BattlefieldPanel_Paint(object sender, PaintEventArgs e)
 {
     var g = e.Graphics;
-    g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-    
-    // Himmel med gradient
+  g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+ 
+    // Himmel med gradient - mer dramatisk
     using (var skyBrush = new System.Drawing.Drawing2D.LinearGradientBrush(
-        new Rectangle(0, 0, this.ClientSize.Width, game.BattlefieldY),
-        Color.FromArgb(135, 206, 235),
-        Color.FromArgb(70, 130, 180),
-  System.Drawing.Drawing2D.LinearGradientMode.Vertical))
-    {
-        g.FillRectangle(skyBrush, 0, 0, this.ClientSize.Width, game.BattlefieldY);
+new Rectangle(0, 0, this.ClientSize.Width, game.BattlefieldY),
+        Color.FromArgb(135, 206, 250),  // Ljusare blå högst upp
+  Color.FromArgb(100, 149, 237),  // Mellanblå
+        System.Drawing.Drawing2D.LinearGradientMode.Vertical))
+ {
+     g.FillRectangle(skyBrush, 0, 0, this.ClientSize.Width, game.BattlefieldY);
     }
     
-    // Rita moln
- DrawClouds(g);
+    // Solen
+    using (var sunBrush = new System.Drawing.Drawing2D.PathGradientBrush(
+   new Point[] { 
+    new Point(this.ClientSize.Width - 150, 80),
+            new Point(this.ClientSize.Width - 100, 50),
+ new Point(this.ClientSize.Width - 50, 80),
+            new Point(this.ClientSize.Width - 100, 110)
+  }))
+    {
+  sunBrush.CenterColor = Color.FromArgb(255, 255, 200);
+ sunBrush.SurroundColors = new Color[] { Color.FromArgb(255, 255, 150), Color.FromArgb(255, 250, 150), Color.FromArgb(255, 255, 150), Color.FromArgb(255, 250, 150) };
+        g.FillEllipse(sunBrush, this.ClientSize.Width - 180, 30, 100, 100);
+    }
     
-    // Bakgrundskullar
+    // Rita moln - fler och mer varierade
+    DrawClouds(g);
+ 
+    // Rita fåglar
+    DrawBirds(g);
+    
+    // Bakgrundskullar - fler lager för djup
     Color distantHillColor = Color.FromArgb(100, 120, 100);
     DrawHill(g, -100, game.BattlefieldY - 150, 400, 150, distantHillColor);
     DrawHill(g, 300, game.BattlefieldY - 180, 500, 180, Color.FromArgb(90, 110, 90));
     DrawHill(g, 700, game.BattlefieldY - 160, 450, 160, distantHillColor);
     DrawHill(g, this.ClientSize.Width - 400, game.BattlefieldY - 170, 500, 170, Color.FromArgb(95, 115, 95));
-    
-    // Mellangrunds träd och kullar
+ 
+    // Mellangrunds träd och kullar - mycket mer
     Color midHillColor = Color.FromArgb(80, 140, 60);
-    DrawHill(g, -50, game.BattlefieldY - 100, 350, 100, midHillColor);
-    DrawForest(g, 200, game.BattlefieldY - 60, 5);
+  DrawHill(g, -50, game.BattlefieldY - 100, 350, 100, midHillColor);
+    DrawForest(g, 200, game.BattlefieldY - 60, 6);  // Fler träd
     DrawHill(g, 400, game.BattlefieldY - 120, 400, 120, Color.FromArgb(75, 130, 55));
-  DrawForest(g, 800, game.BattlefieldY - 60, 4);
+  DrawForest(g, 650, game.BattlefieldY - 65, 3);  // Extra skog
+  DrawForest(g, 800, game.BattlefieldY - 60, 5);
     DrawHill(g, this.ClientSize.Width - 350, game.BattlefieldY - 110, 400, 110, midHillColor);
+    DrawForest(g, this.ClientSize.Width - 200, game.BattlefieldY - 58, 4);
+  
+    // Mark med gradient
+    using (var groundBrush = new System.Drawing.Drawing2D.LinearGradientBrush(
+    new Rectangle(0, game.BattlefieldY, this.ClientSize.Width, 80),
+        Color.FromArgb(210, 180, 140),  // Ljusare sandsten
+     Color.FromArgb(160, 130, 90),   // Mörkare ner
+        System.Drawing.Drawing2D.LinearGradientMode.Vertical))
+ {
+        g.FillRectangle(groundBrush, 0, game.BattlefieldY, this.ClientSize.Width, 80);
+    }
     
-    // Mark
-    g.FillRectangle(Brushes.SandyBrown, 0, game.BattlefieldY, this.ClientSize.Width, 80);
+    // Sand-textur
+    Random rand = new Random(42);  // Fast seed för konsistent utseende
+    for (int i = 0; i < 100; i++)
+    {
+        int px = rand.Next(this.ClientSize.Width);
+        int py = game.BattlefieldY + rand.Next(60);
+      g.FillEllipse(new SolidBrush(Color.FromArgb(180, 150, 110)), px, py, 2, 2);
+    }
     
- // Gräs på marken
-    using (var grassBrush1 = new SolidBrush(Color.FromArgb(50, 150, 50)))
+    // Gräs på marken - mer varierat
+  using (var grassBrush1 = new SolidBrush(Color.FromArgb(50, 150, 50)))
     using (var grassBrush2 = new SolidBrush(Color.FromArgb(40, 130, 40)))
-  {
-      g.FillRectangle(grassBrush1, 0, game.BattlefieldY, this.ClientSize.Width, 12);
-        g.FillRectangle(grassBrush2, 0, game.BattlefieldY + 10, this.ClientSize.Width, 5);
+    using (var grassBrush3 = new SolidBrush(Color.FromArgb(60, 160, 60)))
+    {
+ g.FillRectangle(grassBrush1, 0, game.BattlefieldY, this.ClientSize.Width, 12);
+    g.FillRectangle(grassBrush2, 0, game.BattlefieldY + 10, this.ClientSize.Width, 5);
+        // Fläckar av ljusare gräs
+        for (int i = 0; i < 10; i++)
+ {
+            g.FillEllipse(grassBrush3, i * 150 + 30, game.BattlefieldY, 80, 8);
+ }
     }
 
- DrawGrass(g);
- DrawRocks(g);
+    DrawGrass(g);
+    DrawRocks(g);
+    DrawFlowers(g);  // Nya blommor
+ DrawBushes(g);   // Nya buskar
+    DrawButterflies(g);  // Nya fjärilar
 
-    // Baser
+ // Baser
     game.PlayerBase.Draw(g);
-    game.EnemyBase.Draw(g);
+  game.EnemyBase.Draw(g);
 
-    // Rita utbyggda torn på basen
+    // Rita spawn-progress
+  float progress = game.GetPlayerSpawnProgress();
+    if (progress > 0)
+  {
+ int barWidth = 150;
+   int barHeight = 20;
+int barX = game.PlayerBase.Hitbox.Right + 20;
+     int barY = game.BattlefieldY - 180;
+      
+  g.FillRectangle(Brushes.DarkGray, barX, barY, barWidth, barHeight);
+    g.FillRectangle(Brushes.LightGreen, barX, barY, (int)(barWidth * progress), barHeight);
+        g.DrawRectangle(Pens.Black, barX, barY, barWidth, barHeight);
+   
+   g.DrawString($"Spawnar... {(int)(progress * 100)}%", 
+     new Font("Arial", 10), Brushes.White, barX, barY - 20);
+    }
+
+    int queueCount = game.GetPlayerQueueCount();
+    if (queueCount > 1)
+{
+  g.DrawString($"I kö: {queueCount - 1}", 
+  new Font("Arial", 12, FontStyle.Bold), Brushes.Yellow, 
+     game.PlayerBase.Hitbox.Right + 20, game.BattlefieldY - 210);
+    }
+
+    // Enheter
+    foreach (var unit in game.PlayerUnits)
+     unit.Draw(g);
+    foreach (var unit in game.EnemyUnits)
+      unit.Draw(g);
+
+  // Projektiler
+foreach (var projectile in game.Projectiles)
+projectile.Draw(g);
+
+	// Blodpartiklar
+	foreach (var particle in game.BloodParticles)
+	  particle.Draw(g);
+
+	// Guld-popups (ritas efter blodpartiklar)
+	foreach (var popup in game.GoldPopups)
+		popup.Draw(g);
+
+	// Fallande stenar (ultimate attack)
+	foreach (var rock in game.FallingRocks)
+		rock.Draw(g);
+
+    // Rita utbyggda torn på basen (EFTER allt annat för högsta z-level) - förbättrad design
     for (int i = 0; i < game.BaseExpansions; i++)
     {
-        int towerX = game.PlayerBase.Hitbox.X + 25;  // Centrerat på basen (samma som slot)
-        int towerY = game.PlayerBase.Hitbox.Y - 40 - (i * 50);  // Samma spacing som slots
-        int towerHeight = 45;  // Fast höjd för alla torn
-        int towerWidth = 40;   // Bredare för att se bättre
+        int baseX = game.PlayerBase.Hitbox.X;
+        int baseY = game.PlayerBase.Hitbox.Y;
+ int baseWidth = game.PlayerBase.Hitbox.Width;
         
-        // Torn-kropp
-        using (var towerBrush = new System.Drawing.Drawing2D.LinearGradientBrush(
- new Rectangle(towerX, towerY, towerWidth, towerHeight),
-      Color.FromArgb(100, 100, 100),
-  Color.FromArgb(60, 60, 60),
-        System.Drawing.Drawing2D.LinearGradientMode.Vertical))
-    {
-  g.FillRectangle(towerBrush, towerX, towerY, towerWidth, towerHeight);
-    }
-    g.DrawRectangle(new Pen(Color.Black, 2), towerX, towerY, towerWidth, towerHeight);
+        // Tornets position - anpassad för att se ut som påbyggnad
+        int towerLevel = i + 1;
+        int towerX = baseX + 20;  // Centrerat på basen
+        int towerY = baseY - (towerLevel * 50) - 10;  // Staplade med mellanrum
+     int towerHeight = 50;
+        int towerWidth = 60;
     
-    // Torn-detaljer (fönster)
-    g.FillRectangle(Brushes.DarkGoldenrod, towerX + 8, towerY + 10, 6, 8);
-    g.FillRectangle(Brushes.DarkGoldenrod, towerX + 26, towerY + 10, 6, 8);
-    g.FillRectangle(Brushes.DarkGoldenrod, towerX + 17, towerY + 25, 6, 8);
-}
-
-    // Rita turret-slots
-    if (game.ShowTurretSlot)
-    {
-        foreach (var slot in game.TurretSlots)
+    // Rita tornbas som kopplar till basen/föregående torn
+        if (i == 0)
         {
-          using (var slotBrush = new SolidBrush(Color.FromArgb(150, 0, 255, 0)))
-      {
- g.FillRectangle(slotBrush, slot);
+        // Första tornet kopplar till basen - ritad förbindelse
+   using (var connectBrush = new System.Drawing.Drawing2D.LinearGradientBrush(
+       new Rectangle(baseX + 25, baseY - 15, 50, 15),
+       Color.FromArgb(90, 90, 90),
+     Color.FromArgb(60, 60, 60),
+                System.Drawing.Drawing2D.LinearGradientMode.Vertical))
+       {
+  g.FillRectangle(connectBrush, baseX + 25, baseY - 15, 50, 15);
             }
-g.DrawRectangle(new Pen(Color.LimeGreen, 3), slot);
-        }
-        
-      if (game.TurretSlots.Count > 0)
-        {
-   using (var font = new Font("Arial", 10, FontStyle.Bold))
-            {
-              g.DrawString("Klicka här!", font, Brushes.White, 
-           game.TurretSlots[0].X + 5, game.TurretSlots[0].Y - 20);
-        }
-        }
-    }
-
-    // Rita alla turrets
-    foreach (var turret in game.PlayerTurrets)
-    {
-        turret.Draw(g);
-        
-        if (game.ShowTurretSellHighlight)
-        {
-            using (var redPen = new Pen(Color.Red, 3))
-      {
-     var hitbox = turret.Hitbox;
-      g.DrawRectangle(redPen, hitbox.X - 3, hitbox.Y - 3, hitbox.Width + 6, hitbox.Height + 6);
-            }
-    
-    int blinkFrame = (Environment.TickCount / 200) % 2;
-         if (blinkFrame == 0)
-  {
-          using (var semiRedBrush = new SolidBrush(Color.FromArgb(80, 255, 0, 0)))
-    {
-        var hitbox = turret.Hitbox;
-     g.FillRectangle(semiRedBrush, hitbox.X - 3, hitbox.Y - 3, hitbox.Width + 6, hitbox.Height + 6);
-                }
-  }
+            g.DrawRectangle(new Pen(Color.Black, 2), baseX + 25, baseY - 15, 50, 15);
             
-   using (var font = new Font("Arial", 9, FontStyle.Bold))
+            // Dekorativa stenblock vid anslutning
+            for (int j = 0; j < 3; j++)
+   {
+      g.FillRectangle(new SolidBrush(Color.FromArgb(70, 70, 70)), 
+      baseX + 28 + (j * 15), baseY - 13, 12, 11);
+  }
+        }
+    else
+        {
+            // Ansluter till föregående torn
+int prevTowerY = baseY - (i * 50) - 10;
+ using (var connectBrush = new System.Drawing.Drawing2D.LinearGradientBrush(
+          new Rectangle(towerX + 5, prevTowerY - 5, towerWidth - 10, 5),
+        Color.FromArgb(90, 90, 90),
+     Color.FromArgb(60, 60, 60),
+          System.Drawing.Drawing2D.LinearGradientMode.Vertical))
+    {
+      g.FillRectangle(connectBrush, towerX + 5, prevTowerY - 5, towerWidth - 10, 5);
+            }
+}
+        
+        // Huvudtorn med gradient
+        using (var towerBrush = new System.Drawing.Drawing2D.LinearGradientBrush(
+   new Rectangle(towerX, towerY, towerWidth, towerHeight),
+            Color.FromArgb(110, 110, 110),
+            Color.FromArgb(50, 50, 50),
+   System.Drawing.Drawing2D.LinearGradientMode.Vertical))
+  {
+      g.FillRectangle(towerBrush, towerX, towerY, towerWidth, towerHeight);
+        }
+ 
+        // Stenfog (horisontella linjer)
+        for (int j = 0; j < 3; j++)
+        {
+       g.DrawLine(new Pen(Color.FromArgb(40, 40, 40), 2), 
+   towerX, towerY + 15 + (j * 15), 
+       towerX + towerWidth, towerY + 15 + (j * 15));
+        }
+      
+        // Vertikala stenfogar
+    for (int j = 1; j < 3; j++)
+        {
+     g.DrawLine(new Pen(Color.FromArgb(40, 40, 40), 2), 
+     towerX + (j * towerWidth / 3), towerY, 
+       towerX + (j * towerWidth / 3), towerY + towerHeight);
+  }
+      
+      // Torn-kant
+        g.DrawRectangle(new Pen(Color.Black, 3), towerX, towerY, towerWidth, towerHeight);
+    
+        // Tinnar på toppen (battlements)
+    int merlon1X = towerX + 5;
+        int merlon2X = towerX + 25;
+  int merlon3X = towerX + 45;
+ int merlonY = towerY - 8;
+    int merlonWidth = 12;
+        int merlonHeight = 10;
+  
+        // Rita tinnar med 3D-effekt
+        Color merlonColor = Color.FromArgb(100, 100, 100);
+   Color merlonDark = Color.FromArgb(60, 60, 60);
+        
+        // Tinne 1
+        g.FillRectangle(new SolidBrush(merlonColor), merlon1X, merlonY, merlonWidth, merlonHeight);
+        g.FillRectangle(new SolidBrush(merlonDark), merlon1X + merlonWidth - 3, merlonY, 3, merlonHeight);
+        g.DrawRectangle(Pens.Black, merlon1X, merlonY, merlonWidth, merlonHeight);
+        
+        // Tinne 2
+        g.FillRectangle(new SolidBrush(merlonColor), merlon2X, merlonY, merlonWidth, merlonHeight);
+        g.FillRectangle(new SolidBrush(merlonDark), merlon2X + merlonWidth - 3, merlonY, 3, merlonHeight);
+        g.DrawRectangle(Pens.Black, merlon2X, merlonY, merlonWidth, merlonHeight);
+        
+        // Tinne 3
+        g.FillRectangle(new SolidBrush(merlonColor), merlon3X, merlonY, merlonWidth, merlonHeight);
+        g.FillRectangle(new SolidBrush(merlonDark), merlon3X + merlonWidth - 3, merlonY, 3, merlonHeight);
+        g.DrawRectangle(Pens.Black, merlon3X, merlonY, merlonWidth, merlonHeight);
+        
+        // Fönster med ljus (3 fönster per torn)
+        int[] windowYOffsets = { 15, 30 };
+        int[] windowXOffsets = { 12, 38 };
+        
+   foreach (int yOffset in windowYOffsets)
+        {
+            foreach (int xOffset in windowXOffsets)
             {
+                // Fönsterram
+       g.FillRectangle(Brushes.Black, towerX + xOffset, towerY + yOffset, 8, 10);
+         // Ljus inuti
+       g.FillRectangle(new SolidBrush(Color.FromArgb(255, 200, 100)), 
+               towerX + xOffset + 1, towerY + yOffset + 1, 6, 8);
+      // Korspost i fönster
+             g.DrawLine(new Pen(Color.Black, 1), 
+       towerX + xOffset + 4, towerY + yOffset, 
+       towerX + xOffset + 4, towerY + yOffset + 10);
+  }
+      }
+        
+  // Flagga på det översta tornet
+        if (i == game.BaseExpansions - 1)
+        {
+            int flagPoleX = towerX + towerWidth / 2;
+            int flagPoleTop = towerY - 8 - 20;
+        
+  // Flaggstång
+        g.DrawLine(new Pen(Color.SaddleBrown, 3), 
+    flagPoleX, towerY - 8, flagPoleX, flagPoleTop);
+            
+ // Flagga som vajjar lite
+            int flagWave = (Environment.TickCount / 200) % 2 == 0 ? 0 : 2;
+         Point[] flag = new Point[]
+      {
+           new Point(flagPoleX, flagPoleTop),
+          new Point(flagPoleX + 18 + flagWave, flagPoleTop + 6),
+  new Point(flagPoleX, flagPoleTop + 12)
+  };
+  g.FillPolygon(new SolidBrush(Color.DarkRed), flag);
+g.DrawPolygon(new Pen(Color.Black, 1), flag);
+    
+            // Symbol på flaggan (enkel stjärna/kors)
+      g.FillEllipse(Brushes.Gold, flagPoleX + 8, flagPoleTop + 4, 4, 4);
+        }
+    }
+    
+    // Rita alla turrets (EFTER torn men FÖRE HP-barer)
+    foreach (var turret in game.PlayerTurrets)
+  {
+    turret.Draw(g);
+      
+ if (game.ShowTurretSellHighlight)
+ {
+   using (var redPen = new Pen(Color.Red, 3))
+      {
+   var hitbox = turret.Hitbox;
+g.DrawRectangle(redPen, hitbox.X - 3, hitbox.Y - 3, hitbox.Width + 6, hitbox.Height + 6);
+  }
+    
+ int blinkFrame = (Environment.TickCount / 200) % 2;
+ if (blinkFrame == 0)
+  {
+   using (var semiRedBrush = new SolidBrush(Color.FromArgb(80, 255, 0, 0)))
+    {
+  var hitbox = turret.Hitbox;
+  g.FillRectangle(semiRedBrush, hitbox.X - 3, hitbox.Y - 3, hitbox.Width + 6, hitbox.Height + 6);
+ }
+  }
+    
+   using (var font = new Font("Arial", 9, FontStyle.Bold))
+  {
  int refund = turret.Cost / 2;
-                string text = $"Sälj ({refund}g)";
-        var textSize = g.MeasureString(text, font);
+ string text = $"Sälj ({refund}g)";
+   var textSize = g.MeasureString(text, font);
 g.DrawString(text, font, Brushes.Yellow, 
         turret.PositionX - textSize.Width / 2, 
    turret.PositionY - 50);
-          }
+    }
+   }
+    }
+    
+    // Rita basernas HP-barer SIST (högsta z-level) så de alltid syns
+    // Spelarbas HP-bar
+    int playerHPBarX = game.PlayerBase.Hitbox.X;
+    int playerHPBarY = game.PlayerBase.Hitbox.Y - 15;
+    int hpBarWidth = game.PlayerBase.Hitbox.Width;
+    int hpBarHeight = 10;
+
+   g.FillRectangle(Brushes.DarkRed, playerHPBarX, playerHPBarY, hpBarWidth, hpBarHeight);
+    float playerHPPercent = (float)game.PlayerBase.HP / game.PlayerBase.MaxHP;
+    int playerHPWidth = (int)(hpBarWidth * playerHPPercent);
+    
+    if (playerHPWidth > 0)
+  {
+        using (var hpBrush = new System.Drawing.Drawing2D.LinearGradientBrush(
+new Rectangle(playerHPBarX, playerHPBarY, playerHPWidth, hpBarHeight),
+   Color.LimeGreen,
+       Color.Green,
+     System.Drawing.Drawing2D.LinearGradientMode.Vertical))
+      {
+        g.FillRectangle(hpBrush, playerHPBarX, playerHPBarY, playerHPWidth, hpBarHeight);
         }
     }
-
-    // Rita transparent preview-turret
-    if (previewTurret != null && selectedTurretType != null)
+    
+  g.FillRectangle(new SolidBrush(Color.FromArgb(100, 255, 255, 255)), 
+      playerHPBarX, playerHPBarY, hpBarWidth, 3);
+    g.DrawRectangle(new Pen(Color.Black, 2), playerHPBarX, playerHPBarY, hpBarWidth, hpBarHeight);
+    
+    using (var font = new Font("Arial", 8, FontStyle.Bold))
+ {
+        string hpText = $"{game.PlayerBase.HP}/{game.PlayerBase.MaxHP}";
+    var textSize = g.MeasureString(hpText, font);
+        g.DrawString(hpText, font, Brushes.White, 
+  playerHPBarX + (hpBarWidth - textSize.Width) / 2, 
+       playerHPBarY + 1);
+    }
+    
+    // Fiendbas HP-bar
+    int enemyHPBarX = game.EnemyBase.Hitbox.X;
+    int enemyHPBarY = game.EnemyBase.Hitbox.Y - 15;
+ 
+ g.FillRectangle(Brushes.DarkRed, enemyHPBarX, enemyHPBarY, hpBarWidth, hpBarHeight);
+    float enemyHPPercent = (float)game.EnemyBase.HP / game.EnemyBase.MaxHP;
+    int enemyHPWidth = (int)(hpBarWidth * enemyHPPercent);
+    
+    if (enemyHPWidth > 0)
+  {
+        using (var hpBrush = new System.Drawing.Drawing2D.LinearGradientBrush(
+            new Rectangle(enemyHPBarX, enemyHPBarY, enemyHPWidth, hpBarHeight),
+    Color.Red,
+      Color.DarkRed,
+     System.Drawing.Drawing2D.LinearGradientMode.Vertical))
+  {
+            g.FillRectangle(hpBrush, enemyHPBarX, enemyHPBarY, enemyHPWidth, hpBarHeight);
+        }
+    }
+    
+    g.FillRectangle(new SolidBrush(Color.FromArgb(100, 255, 255, 255)), 
+        enemyHPBarX, enemyHPBarY, hpBarWidth, 3);
+    g.DrawRectangle(new Pen(Color.Black, 2), enemyHPBarX, enemyHPBarY, hpBarWidth, hpBarHeight);
+    
+    using (var font = new Font("Arial", 8, FontStyle.Bold))
     {
-        var originalState = g.Save();
-        
-        var colorMatrix = new System.Drawing.Imaging.ColorMatrix();
+ string hpText = $"{game.EnemyBase.HP}/{game.EnemyBase.MaxHP}";
+  var textSize = g.MeasureString(hpText, font);
+        g.DrawString(hpText, font, Brushes.White, 
+    enemyHPBarX + (hpBarWidth - textSize.Width) / 2, 
+            enemyHPBarY + 1);
+    }
+
+    // Rita turret-slots ALLRA SIST så de ligger ovanpå allt annat
+    if (game.ShowTurretSlot)
+    {
+ foreach (var slot in game.TurretSlots)
+   {
+ using (var slotBrush = new SolidBrush(Color.FromArgb(150, 0, 255, 0)))
+  {
+    g.FillRectangle(slotBrush, slot);
+        }
+ g.DrawRectangle(new Pen(Color.LimeGreen, 3), slot);
+   }
+  
+      if (game.TurretSlots.Count > 0)
+        {
+        using (var font = new Font("Arial", 10, FontStyle.Bold))
+   {
+     g.DrawString("Klicka här!", font, Brushes.White, 
+  game.TurretSlots[0].X + 5, game.TurretSlots[0].Y - 20);
+    }
+ }
+    }
+
+    // Rita transparent preview-turret och instruktioner ABSOLUT SIST - längst fram i vyn
+    if (previewTurret != null && selectedTurretType != null)
+  {
+ var originalState = g.Save();
+
+    var colorMatrix = new System.Drawing.Imaging.ColorMatrix();
         colorMatrix.Matrix33 = 0.5f;
-        
+ 
       var imageAttributes = new System.Drawing.Imaging.ImageAttributes();
     imageAttributes.SetColorMatrix(colorMatrix, 
       System.Drawing.Imaging.ColorMatrixFlag.Default,
      System.Drawing.Imaging.ColorAdjustType.Bitmap);
-        
-    using (var tempBitmap = new Bitmap(60, 60))
-        {
-            using (var tempG = Graphics.FromImage(tempBitmap))
+  
+  using (var tempBitmap = new Bitmap(60, 60))
+     {
+      using (var tempG = Graphics.FromImage(tempBitmap))
   {
      tempG.Clear(Color.Transparent);
-              tempG.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+   tempG.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
     
-                var tempTurret = previewTurret;
-           float oldX = tempTurret.PositionX;
-           int oldY = tempTurret.PositionY;
+var tempTurret = previewTurret;
+      float oldX = tempTurret.PositionX;
+      int oldY = tempTurret.PositionY;
 
-        tempTurret.PositionX = 30;
+     tempTurret.PositionX = 30;
      tempTurret.PositionY = 50;
-           tempTurret.Draw(tempG);
+    tempTurret.Draw(tempG);
     
    tempTurret.PositionX = oldX;
   tempTurret.PositionY = oldY;
     }
     
-     g.DrawImage(tempBitmap, 
+  g.DrawImage(tempBitmap, 
        new Rectangle(mousePosition.X - 30, mousePosition.Y - 50, 60, 60),
-      0, 0, 60, 60,
+   0, 0, 60, 60,
     GraphicsUnit.Pixel,
-             imageAttributes);
+imageAttributes);
   }
-      
+
      g.Restore(originalState);
-        
-        using (var font = new Font("Arial", 9, FontStyle.Bold))
-        {
-            g.DrawString("Klicka på grön ruta för att placera\nKlicka utanför för att avbryta", 
+  
+   using (var font = new Font("Arial", 9, FontStyle.Bold))
+ {
+          g.DrawString("Klicka på grön ruta för att placera\nKlicka utanför för att avbryta", 
       font, Brushes.Yellow, mousePosition.X - 70, mousePosition.Y + 20);
      }
     }
-
-    // Rita spawn-progress
-    float progress = game.GetPlayerSpawnProgress();
-    if (progress > 0)
-    {
-        int barWidth = 150;
-        int barHeight = 20;
-        int barX = game.PlayerBase.Hitbox.Right + 20;
-        int barY = game.BattlefieldY - 180;
-      
-        g.FillRectangle(Brushes.DarkGray, barX, barY, barWidth, barHeight);
-        g.FillRectangle(Brushes.LightGreen, barX, barY, (int)(barWidth * progress), barHeight);
-        g.DrawRectangle(Pens.Black, barX, barY, barWidth, barHeight);
-        
-   g.DrawString($"Spawnar... {(int)(progress * 100)}%", 
-            new Font("Arial", 10), Brushes.White, barX, barY - 20);
-    }
-
-    int queueCount = game.GetPlayerQueueCount();
-    if (queueCount > 1)
-    {
-  g.DrawString($"I kö: {queueCount - 1}", 
-            new Font("Arial", 12, FontStyle.Bold), Brushes.Yellow, 
-            game.PlayerBase.Hitbox.Right + 20, game.BattlefieldY - 210);
-    }
-
-    // Enheter
-    foreach (var unit in game.PlayerUnits)
-        unit.Draw(g);
-    foreach (var unit in game.EnemyUnits)
-        unit.Draw(g);
-
-    // Projektiler
-    foreach (var projectile in game.Projectiles)
-        projectile.Draw(g);
-
-    // Fallande stenar (ultimate attack)
-    foreach (var rock in game.FallingRocks)
-        rock.Draw(g);
-}
-
-// Hjälpmetoder för att rita miljö
-private void DrawHill(Graphics g, int x, int y, int width, int height, Color color)
-{
-    using (var brush = new SolidBrush(color))
-    {
-        g.FillEllipse(brush, x, y, width, height * 2);
- }
-}
-
-private void DrawClouds(Graphics g)
-{
-    Color cloudColor = Color.FromArgb(200, 255, 255, 255);
-    DrawCloud(g, 100, 50, cloudColor);
-    DrawCloud(g, 400, 80, cloudColor);
-    DrawCloud(g, 800, 40, cloudColor);
-    DrawCloud(g, this.ClientSize.Width - 200, 70, cloudColor);
-}
-
-private void DrawCloud(Graphics g, int x, int y, Color color)
-{
-    using (var brush = new SolidBrush(color))
-    {
-g.FillEllipse(brush, x, y, 60, 30);
-        g.FillEllipse(brush, x + 20, y - 10, 50, 35);
-        g.FillEllipse(brush, x + 40, y, 55, 30);
-    }
-}
-
-private void DrawForest(Graphics g, int x, int y, int treeCount)
-{
-    for (int i = 0; i < treeCount; i++)
-    {
-     DrawTree(g, x + (i * 40), y + (i % 2 * 10));
-    }
-}
-
-private void DrawTree(Graphics g, int x, int y)
-{
-    g.FillRectangle(Brushes.SaddleBrown, x, y, 15, 60);
-    
-    Color leafColor = Color.FromArgb(34, 139, 34);
-    g.FillEllipse(new SolidBrush(leafColor), x - 20, y - 40, 55, 50);
-    g.FillEllipse(new SolidBrush(Color.FromArgb(40, 160, 40)), x - 15, y - 55, 45, 45);
-    g.FillEllipse(new SolidBrush(Color.FromArgb(30, 120, 30)), x - 10, y - 65, 35, 40);
-}
-
-private void DrawGrass(Graphics g)
-{
-    Color grassColor = Color.FromArgb(60, 180, 60);
-    using (var grassPen = new Pen(grassColor, 2))
-    {
-        for (int i = 0; i < this.ClientSize.Width; i += 20)
-     {
-  int grassX = i + (i % 3 * 5);
-            int grassY = game.BattlefieldY + 15;
-            g.DrawLine(grassPen, grassX, grassY, grassX + 2, grassY - 8);
-     g.DrawLine(grassPen, grassX + 5, grassY, grassX + 3, grassY - 10);
-   g.DrawLine(grassPen, grassX + 10, grassY, grassX + 12, grassY - 7);
-    }
-    }
-}
-
-private void DrawRocks(Graphics g)
-{
-    Color rockColor = Color.FromArgb(120, 120, 120);
-    DrawRock(g, 150, game.BattlefieldY + 20, 15, rockColor);
-    DrawRock(g, 350, game.BattlefieldY + 25, 12, rockColor);
-    DrawRock(g, 600, game.BattlefieldY + 22, 18, rockColor);
-    DrawRock(g, this.ClientSize.Width - 300, game.BattlefieldY + 24, 14, rockColor);
-}
-
-private void DrawRock(Graphics g, int x, int y, int size, Color color)
-{
-    using (var brush = new SolidBrush(color))
-    {
-   Point[] rockPoints = new Point[]
-        {
-     new Point(x, y + size / 2),
-      new Point(x + size / 3, y),
-            new Point(x + size * 2 / 3, y + size / 4),
-  new Point(x + size, y + size / 2),
-   new Point(x + size * 2 / 3, y + size),
-   new Point(x + size / 3, y + size)
-        };
-    g.FillPolygon(brush, rockPoints);
-    }
-}
-    }
-}
+}  // Slut på BattlefieldPanel_Paint
+    }  // Slut på Form1-klassen
+}  // Slut på namespace
