@@ -22,7 +22,7 @@ namespace Age_of_War
         private bool sellingTurret = false;
   private Turret previewTurret = null;
         private Point mousePosition;
-private Label lblGold, lblBaseHP, lblEnemyBaseHP;
+private Label lblGold;
         private Button btnPause;
      private Button btnUltimate;
         private Panel pausePanel;
@@ -72,30 +72,30 @@ InitializeComponent();
 
         private void InitializeGameUI()
       {
-     // Pause button - improved design
+     // Pause button - improved design with pause icon
     btnPause = new Button
        {
-       Text = "?",
+       Text = "",  // Ta bort text, vi ritar ikonen själv
      Size = new Size(60, 50),
      Location = new Point(this.ClientSize.Width - 80, 20),
             Anchor = AnchorStyles.Top | AnchorStyles.Right,
-      Font = new Font("Arial", 20, FontStyle.Bold),
-        BackColor = Color.FromArgb(70, 70, 70),
+      BackColor = Color.FromArgb(70, 70, 70),
      ForeColor = Color.White,
        FlatStyle = FlatStyle.Flat
             };
        btnPause.FlatAppearance.BorderColor = Color.White;
    btnPause.FlatAppearance.BorderSize = 2;
             btnPause.Click += BtnPause_Click;
+      btnPause.Paint += BtnPause_Paint;  // Lägg till Paint event
             this.Controls.Add(btnPause);
        btnPause.BringToFront();
 
-      // Ultimate attack button
+      // Ultimate attack button - till vänster om pause
     btnUltimate = new Button
        {
          Text = "",
               Size = new Size(80, 80),
-            Location = new Point(this.ClientSize.Width - 120, 80),
+            Location = new Point(this.ClientSize.Width - 170, 20),  // Flytta till vänster
               Anchor = AnchorStyles.Top | AnchorStyles.Right,
       BackColor = Color.FromArgb(139, 69, 19)
             };
@@ -209,16 +209,10 @@ btnToggleSoldiers.Click += (s, e) => ToggleToSoldiers();
          btnExpandBase.BringToFront();
   btnToggleSoldiers.BringToFront();
 
-       // Labels
-            lblGold = new Label { Location = new Point(20, 150), Size = new Size(200, 30), Font = new Font("Arial", 14, FontStyle.Bold), BackColor = Color.FromArgb(240, 230, 210) };
-       lblBaseHP = new Label { Location = new Point(20, 185), Size = new Size(200, 30), Font = new Font("Arial", 12), BackColor = Color.FromArgb(240, 230, 210) };
-         lblEnemyBaseHP = new Label { Location = new Point(this.ClientSize.Width - 220, 185), Size = new Size(200, 30), Font = new Font("Arial", 12), TextAlign = ContentAlignment.TopRight, BackColor = Color.FromArgb(240, 230, 210) };
-            this.Controls.Add(lblGold);
-            this.Controls.Add(lblBaseHP);
-      this.Controls.Add(lblEnemyBaseHP);
+       // Labels - bara guld behövs
+         lblGold = new Label { Location = new Point(20, 150), Size = new Size(200, 30), Font = new Font("Arial", 14, FontStyle.Bold), BackColor = Color.FromArgb(240, 230, 210) };
+         this.Controls.Add(lblGold);
        lblGold.BringToFront();
-    lblBaseHP.BringToFront();
-   lblEnemyBaseHP.BringToFront();
         }
 
         private void SetGameUIVisibility(bool visible)
@@ -230,8 +224,6 @@ btnToggleSoldiers.Click += (s, e) => ToggleToSoldiers();
    btnCavalry.Visible = visible;
     btnToggleTurret.Visible = visible;
         lblGold.Visible = visible;
-            lblBaseHP.Visible = visible;
-          lblEnemyBaseHP.Visible = visible;
       }
 
     private void StartGame()
@@ -247,9 +239,8 @@ btnToggleSoldiers.Click += (s, e) => ToggleToSoldiers();
         {
             battlefieldPanel.Size = new Size(this.ClientSize.Width, this.ClientSize.Height);
             btnPause.Location = new Point(this.ClientSize.Width - 80, 20);
-    btnUltimate.Location = new Point(this.ClientSize.Width - 130, 80);
-     pausePanel.Location = new Point((this.ClientSize.Width - pausePanel.Width) / 2, (this.ClientSize.Height - pausePanel.Height) / 2);
-            lblEnemyBaseHP.Location = new Point(this.ClientSize.Width - 220, 185);
+    btnUltimate.Location = new Point(this.ClientSize.Width - 170, 20);  // Uppdatera till vänster
+    pausePanel.Location = new Point((this.ClientSize.Width - pausePanel.Width) / 2, (this.ClientSize.Height - pausePanel.Height) / 2);
 
             // Update dimensions
     if (game != null)
@@ -258,14 +249,14 @@ game.UpdateDimensions(this.ClientSize.Width, this.ClientSize.Height);
          }
 
         if (mainMenu != null)
-            {
+         {
         mainMenu.UpdateDimensions(this.ClientSize.Width, this.ClientSize.Height);
-            }
+         }
 
-         if (endScreen != null)
+  if (endScreen != null)
    {
     endScreen.UpdateDimensions(this.ClientSize.Width, this.ClientSize.Height);
-            }
+          }
      }
 
   private void SpawnUnit(Type unitType)
@@ -557,11 +548,9 @@ if (game.PlayerTurrets.Count == 0)
 
         // Uppdatera UI
             lblGold.Text = $"Guld: {game.PlayerGold}";
- lblBaseHP.Text = $"Bas HP: {game.PlayerBase.HP}";
-            lblEnemyBaseHP.Text = $"Fiende Bas HP: {game.EnemyBase.HP}";
 
  // Uppdatera ultimate-knappen
-            btnUltimate.Invalidate();
+     btnUltimate.Invalidate();
 
      // Kontrollera vinst/förlust
          if (game.PlayerBase.HP <= 0 || game.EnemyBase.HP <= 0)
@@ -1122,5 +1111,31 @@ var tempTurret = previewTurret;
                 }
    }
   }
+
+private void BtnPause_Paint(object sender, PaintEventArgs e)
+{
+    var btn = (Button)sender;
+    var g = e.Graphics;
+ g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+    // Rita två vertikala staplar för pause-symbol
+    int barWidth = 12;
+    int barHeight = 30;
+    int centerX = btn.Width / 2;
+    int centerY = btn.Height / 2;
+    int spacing = 8;
+
+    // Vänster stapel
+    using (var brush = new SolidBrush(Color.White))
+    {
+        g.FillRectangle(brush, centerX - barWidth - spacing / 2, centerY - barHeight / 2, barWidth, barHeight);
+    }
+
+    // Höger stapel
+    using (var brush = new SolidBrush(Color.White))
+ {
+            g.FillRectangle(brush, centerX + spacing / 2, centerY - barHeight / 2, barWidth, barHeight);
+        }
+    }
     }
 }

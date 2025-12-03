@@ -84,85 +84,122 @@ Point[] backSpike = new Point[]
     }
     
     // Sadel på ödlan (primitiv)
-    Color saddleColor = Color.FromArgb(101, 67, 33);
-  g.FillEllipse(new SolidBrush(saddleColor), x + 12, y - 24, 22, 8);
-    // Sadel-textur
-    g.DrawLine(new Pen(Color.SaddleBrown, 2), x + 14, y - 22, x + 32, y - 22);
-    // Sadel-remmar
-  g.DrawLine(new Pen(Color.SaddleBrown, 2), x + 18, y - 20, x + 18, y - 10);
-    g.DrawLine(new Pen(Color.SaddleBrown, 2), x + 28, y - 20, x + 28, y - 10);
+    Color saddleColor = Color.FromArgb(alpha, 101, 67, 33);
     
-    // Ödlehuvud (i profil) - mer detaljerat
-  int headX = x + (IsPlayer ? 43 : -8);
+    // Lägg till en svajig rörelse för kroppen när ödlan går
+  int bodyBounce = 0;
+    if (!IsBlocked && !IsDying)
+    {
+      if (animationFrame % 4 == 1 || animationFrame % 4 == 3)
+        {
+            bodyBounce = -2;  // Kroppen rör sig lite uppåt när benen lyfts
+        }
+    }
+    
+    g.FillEllipse(new SolidBrush(saddleColor), x + 12, y - 24 + bodyBounce, 22, 8);
+    // Sadel-textur
+    g.DrawLine(new Pen(Color.FromArgb(alpha, Color.SaddleBrown), 2), x + 14, y - 22 + bodyBounce, x + 32, y - 22 + bodyBounce);
+    // Sadel-remmar
+ g.DrawLine(new Pen(Color.FromArgb(alpha, Color.SaddleBrown), 2), x + 18, y - 20 + bodyBounce, x + 18, y - 10);
+ g.DrawLine(new Pen(Color.FromArgb(alpha, Color.SaddleBrown), 2), x + 28, y - 20 + bodyBounce, x + 28, y - 10);
+    
+    // Ödlehuvud (i profil) - mer detaljerat med svajig rörelse
+    int headX = x + (IsPlayer ? 43 : -8);
+    int headBounce = bodyBounce / 2;  // Huvudet rör sig hälften så mycket som kroppen
     
  // Huvud
- g.FillEllipse(new SolidBrush(lizardColor), headX, y - 24, 14, 12);
+    g.FillEllipse(new SolidBrush(lizardColor), headX, y - 24 + headBounce, 14, 12);
     // Ljus undersida
-    g.FillEllipse(new SolidBrush(lightLizard), headX + 2, y - 19, 10, 6);
+    g.FillEllipse(new SolidBrush(lightLizard), headX + 2, y - 19 + headBounce, 10, 6);
     
     // Nos-rygg med fjäll
-for (int i = 0; i < 3; i++)
-  {
-   g.FillEllipse(new SolidBrush(darkLizard), headX + 3 + (i * 3), y - 26, 3, 2);
-  }
-    
+    for (int i = 0; i < 3; i++)
+    {
+    g.FillEllipse(new SolidBrush(darkLizard), headX + 3 + (i * 3), y - 26 + headBounce, 3, 2);
+    }
+  
     // Öga med ögonlock
     int eyeX = headX + (IsPlayer ? 10 : 3);
- g.FillEllipse(Brushes.Yellow, eyeX, y - 21, 4, 4);
-    g.FillEllipse(Brushes.Black, eyeX + 1, y - 20, 2, 2);
+    g.FillEllipse(Brushes.Yellow, eyeX, y - 21 + headBounce, 4, 4);
+    g.FillEllipse(Brushes.Black, eyeX + 1, y - 20 + headBounce, 2, 2);
     // Ögonlock (reptil-stil)
-    g.DrawArc(new Pen(darkLizard, 1), eyeX, y - 21, 4, 3, 180, 180);
+    g.DrawArc(new Pen(darkLizard, 1), eyeX, y - 21 + headBounce, 4, 3, 180, 180);
     
-    // Mun med tänder
-    g.DrawLine(new Pen(Color.Black, 2), headX + (IsPlayer ? 12 : 2), y - 16, headX + (IsPlayer ? 14 : 0), y - 15);
+ // Mun med tänder
+    g.DrawLine(new Pen(Color.Black, 2), headX + (IsPlayer ? 12 : 2), y - 16 + headBounce, headX + (IsPlayer ? 14 : 0), y - 15 + headBounce);
     // Små tänder
     for (int i = 0; i < 2; i++)
     {
-   g.DrawLine(Pens.White, headX + (IsPlayer ? 12 : 2) + i, y - 16, headX + (IsPlayer ? 12 : 2) + i, y - 18);
+g.DrawLine(Pens.White, headX + (IsPlayer ? 12 : 2) + i, y - 16 + headBounce, headX + (IsPlayer ? 12 : 2) + i, y - 18 + headBounce);
     }
     
     // Näsborre
-  g.FillEllipse(Brushes.Black, headX + (IsPlayer ? 12 : 2), y - 23, 2, 1);
+    g.FillEllipse(Brushes.Black, headX + (IsPlayer ? 12 : 2), y - 23 + headBounce, 2, 1);
     
-    // Ödleben (walk animation) - mer detaljerade
-    int legOffset1 = 0, legOffset2 = 0;
-    if (!IsBlocked)
+    // Ödleben (walk animation) - mer detaljerade och smidigare
+    int legOffset1X = 0, legOffset1Y = 0;
+    int legOffset2X = 0, legOffset2Y = 0;
+    
+if (!IsBlocked && !IsDying)  // Ingen animation när man dör
     {
-  if (animationFrame % 4 == 1)
-      {
-         legOffset1 = 4;
-       legOffset2 = -2;
-     }
-    else if (animationFrame % 4 == 3)
+// Smooth walk cycle med sinus-kurva för naturligare rörelse
+        if (animationFrame % 4 == 0)
+  {
+            legOffset1X = 0;
+ legOffset1Y = 0;
+         legOffset2X = 0;
+    legOffset2Y = 0;
+      }
+      else if (animationFrame % 4 == 1)
+{
+            // Främre ben går framåt (upp och fram)
+       legOffset1X = 6 * direction;
+         legOffset1Y = -4;  // Lyfter upp lite
+    // Bakre ben går bakåt (ner och bak)
+            legOffset2X = -3 * direction;
+       legOffset2Y = 2;
+        }
+   else if (animationFrame % 4 == 2)
  {
-     legOffset1 = -2;
-  legOffset2 = 4;
-     }
-}
-    
-  // Bakre ben med mer detalj
-    g.FillRectangle(new SolidBrush(lizardColor), x + 10, y - 8 + legOffset2, 5, 10);
-g.DrawLine(new Pen(darkLizard, 1), x + 12, y - 7 + legOffset2, x + 12, y - 2 + legOffset2);
-    // Fot med klor
-g.FillEllipse(new SolidBrush(lizardColor), x + 8, y - 2, 7, 4);
-    for (int i = 0; i < 3; i++)
-    {
- g.DrawLine(new Pen(Color.Black, 1), x + 9 + (i * 2), y - 2, x + 9 + (i * 2), y);
+          legOffset1X = 0;
+   legOffset1Y = 0;
+      legOffset2X = 0;
+  legOffset2Y = 0;
+        }
+        else // animationFrame % 4 == 3
+        {
+// Bakre ben går framåt (upp och fram)
+     legOffset2X = 6 * direction;
+            legOffset2Y = -4;  // Lyfter upp lite
+      // Främre ben går bakåt (ner och bak)
+        legOffset1X = -3 * direction;
+   legOffset1Y = 2;
+        }
     }
     
- // Främre ben med mer detalj
-    g.FillRectangle(new SolidBrush(lizardColor), x + 32, y - 8 + legOffset1, 5, 10);
-    g.DrawLine(new Pen(lightLizard, 1), x + 34, y - 7 + legOffset1, x + 34, y - 2 + legOffset1);
+    // Bakre ben med mer detalj
+    g.FillRectangle(new SolidBrush(lizardColor), x + 10 + legOffset2X, y - 8 + legOffset2Y, 5, 10);
+    g.DrawLine(new Pen(darkLizard, 1), x + 12 + legOffset2X, y - 7 + legOffset2Y, x + 12 + legOffset2X, y - 2 + legOffset2Y);
     // Fot med klor
-    g.FillEllipse(new SolidBrush(lizardColor), x + 30, y - 2, 7, 4);
- for (int i = 0; i < 3; i++)
+    g.FillEllipse(new SolidBrush(lizardColor), x + 8 + legOffset2X, y - 2 + legOffset2Y, 7, 4);
+for (int i = 0; i < 3; i++)
     {
-      g.DrawLine(new Pen(Color.Black, 1), x + 31 + (i * 2), y - 2, x + 31 + (i * 2), y);
+        g.DrawLine(new Pen(Color.Black, 1), x + 9 + (i * 2) + legOffset2X, y - 2 + legOffset2Y, x + 9 + (i * 2) + legOffset2X, y + legOffset2Y);
+    }
+    
+    // Främre ben med mer detalj
+    g.FillRectangle(new SolidBrush(lizardColor), x + 32 + legOffset1X, y - 8 + legOffset1Y, 5, 10);
+    g.DrawLine(new Pen(lightLizard, 1), x + 34 + legOffset1X, y - 7 + legOffset1Y, x + 34 + legOffset1X, y - 2 + legOffset1Y);
+    // Fot med klor
+    g.FillEllipse(new SolidBrush(lizardColor), x + 30 + legOffset1X, y - 2 + legOffset1Y, 7, 4);
+    for (int i = 0; i < 3; i++)
+    {
+        g.DrawLine(new Pen(Color.Black, 1), x + 31 + (i * 2) + legOffset1X, y - 2 + legOffset1Y, x + 31 + (i * 2) + legOffset1X, y + legOffset1Y);
     }
     
     // Rita ryttare (grottmänniska) ovanpå ödlan - justerad position för att sitta NED i sadeln
     int riderX = x + 15;
-    int riderY = y - 16;  // Ändrat från y - 20 till y - 16 så hela kroppen sitter NED utan tomrum
+    int riderY = y - 8 + bodyBounce;  // Ryttaren svänger med ödlans kropp
  
     // Ryttarens bakre ben (på ödlans sidor)
     g.FillRectangle(new SolidBrush(skinColor), riderX - 3, riderY + 10, 5, 6);  // Ännu kortare ben

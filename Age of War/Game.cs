@@ -128,7 +128,9 @@ namespace Age_of_War
 				{
 					if (PlayerUnits[j].IsDying) continue;  // Döende enheter kolliderar inte
 					
-					if (Utils.Intersects(PlayerUnits[i].Hitbox, PlayerUnits[j].Hitbox))
+					// Ökat avstånd mellan egna enheter så de inte stackar sig
+					float distance = Math.Abs(PlayerUnits[i].PositionX - PlayerUnits[j].PositionX);
+					if (distance < 50) // Ökad från direkt kollision till 50 pixlar
 					{
 						// Den bakre enheten blockeras
 						if (PlayerUnits[i].PositionX < PlayerUnits[j].PositionX)
@@ -149,7 +151,7 @@ namespace Age_of_War
 					
 					// Ökat avstånd för fiendens enheter så HP-barer syns bättre
 					float distance = Math.Abs(EnemyUnits[i].PositionX - EnemyUnits[j].PositionX);
-					if (distance < 45) // Extra avstånd mellan fiendens enheter
+					if (distance < 50) // Ökat från 45 till 50 pixlar för bättre spacing
 					{
 						// Den bakre enheten blockeras (för fienden: den som är längre till höger)
 						if (EnemyUnits[i].PositionX > EnemyUnits[j].PositionX)
@@ -180,20 +182,20 @@ namespace Age_of_War
 					// Ökat avstånd för strid - enheter stannar längre ifrån varandra
 					float combatDistance = Math.Abs(p.PositionX - e.PositionX);
 
-					// Närstridssoldater stannar på 40 pixlar avstånd
+					// Närstridssoldater stannar på 45 pixlar avstånd
 					if ((p is Soldier || p is CavalryUnit || p is TankUnit) &&
 						 (e is Soldier || e is CavalryUnit || e is TankUnit))
 					{
-						if (combatDistance < 40)
+						if (combatDistance < 45) // Ökat från 40 till 45 för mer spacing
 						{
 							p.IsBlocked = true;
 							e.IsBlocked = true;
 						}
 					}
-					// Om någon är ranged, närstridsenhet stannar på 50 pixlar (så de kan slå)
+					// Om någon är ranged, närstridsenhet stannar på 55 pixlar (så de kan slå)
 					else if (p is RangedUnit || e is RangedUnit)
 					{
-						if (combatDistance < 50)  // Minskat från 60 till 50
+						if (combatDistance < 55)  // Ökat från 50 till 55
 						{
 							p.IsBlocked = true;
 							e.IsBlocked = true;
@@ -259,15 +261,29 @@ namespace Age_of_War
 					// Närstridssoldater (Soldier, CavalryUnit, TankUnit) - kan slå på längre avstånd
 					if (p is Soldier || p is CavalryUnit || p is TankUnit)
 					{
-						if (distance < 70)  // Ökat från 60 till 70 så melee når ranged
+						if (distance < 60)  // Minskat från 70 till 60 så bara främsta enheten når
 						{
 							if (p.CanAttack)
 							{
+								// Kolla om detta slag kommer döda fienden
+								bool willKillEnemy = e.HP - p.Damage <= 0;
+								
 								e.HP -= p.Damage;
 								p.ResetAttackTimer();
 								
 								// Skapa blodstänk när fienden tar skada
 								SpawnBloodParticles(e.PositionX, e.PositionY - 25, 5);
+								
+								// Ge guld och spawna popup DIREKT när fienden dör
+								if (willKillEnemy)
+								{
+									int unitCost = e is Soldier ? 50 : e is RangedUnit ? 80 : e is CavalryUnit ? 200 : 50;
+									int goldReward = (int)Math.Ceiling(unitCost * 1.25);
+									PlayerGold += goldReward;
+									
+									// Spawna guld-popup
+									GoldPopups.Add(new GoldPopup(e.PositionX, e.PositionY - 30, goldReward));
+								}
 							}
 							// Bara om båda är melee slår de tillbaka direkt
 							if ((e is Soldier || e is CavalryUnit || e is TankUnit) && e.CanAttack)
@@ -275,6 +291,7 @@ namespace Age_of_War
 								p.HP -= e.Damage;
 								e.ResetAttackTimer();
 								
+
 								// Skapa blodstänk när spelaren tar skada
 								SpawnBloodParticles(p.PositionX, p.PositionY - 25, 5);
 							}
@@ -304,14 +321,7 @@ namespace Age_of_War
 				if (e.IsFullyDead)
 				{
 					EnemyUnits.RemoveAt(i);
-					EnemyScore++;
-					// Spelaren får 1.25x av enhetens köppris (avrundat uppåt)
-					int unitCost = e is Soldier ? 50 : e is RangedUnit ? 80 : e is CavalryUnit ? 200 : 50;
-					int goldReward = (int)Math.Ceiling(unitCost * 1.25);
-					PlayerGold += goldReward;
-					
-					// Spawna guld-popup
-					GoldPopups.Add(new GoldPopup(e.PositionX, e.PositionY - 30, goldReward));
+					// Guld har redan givits när enheten dog, ta bara bort den här
 					continue;
 				}
 				
@@ -338,13 +348,14 @@ namespace Age_of_War
 					// Närstrid för fiendens melee-enheter - kan slå på längre avstånd
 					if (e is Soldier || e is CavalryUnit || e is TankUnit)
 					{
-						if (distance < 70)  // Ökat från 60 till 70 så melee når ranged
+						if (distance < 60)  // Minskat från 70 till 60 så bara främsta enheten når
 						{
 							if (e.CanAttack)
 							{
 								p.HP -= e.Damage;
 								e.ResetAttackTimer();
 								
+
 								// Skapa blodstänk när spelaren tar skada
 								SpawnBloodParticles(p.PositionX, p.PositionY - 25, 5);
 							}
@@ -389,11 +400,25 @@ namespace Age_of_War
 			    
 			       if (Utils.Intersects(new Rectangle((int)proj.X - 3, (int)proj.Y - 3, 6, 6), e.Hitbox))
     {
+    // Kolla om denna projektil kommer döda fienden
+    bool willKillEnemy = e.HP - proj.Damage <= 0;
+    
     e.HP -= proj.Damage;
-   proj.IsActive = false;
+    proj.IsActive = false;
        
     // Skapa blodstänk när fienden träffas av projektil
        SpawnBloodParticles(proj.X, proj.Y, 8);
+       
+       // Ge guld och spawna popup DIREKT när fienden dör
+       if (willKillEnemy)
+       {
+         int unitCost = e is Soldier ? 50 : e is RangedUnit ? 80 : e is CavalryUnit ? 200 : 50;
+         int goldReward = (int)Math.Ceiling(unitCost * 1.25);
+         PlayerGold += goldReward;
+         
+         // Spawna guld-popup
+         GoldPopups.Add(new GoldPopup(e.PositionX, e.PositionY - 30, goldReward));
+       }
    break;
    }
   }
@@ -866,37 +891,41 @@ FallingRocks.RemoveAt(i);
    
  // Kolla om stenen träffar fiendeenheter - sätter HP till 0 för dödsanimation
    bool rockHitEnemy = false;
-   for (int j = EnemyUnits.Count - 1; j >= 0; j--)
-    {
-   var enemy = EnemyUnits[j];
-     if (Utils.Intersects(rock.Hitbox, enemy.Hitbox))
-  {
-  // Sätt HP till 0 istället för instant kill så dödsanimation kan spelas
-         if (!enemy.IsDying)  // Träffa bara levande enheter
-     {
-  enemy.HP = 0;  // Detta triggar dödsanimationen i nästa Update()
-  
-     // Ge 1.25x av köppris (avrundat uppåt)
-		int unitCost = enemy is Soldier ? 50 : enemy is RangedUnit ? 80 : enemy is CavalryUnit ? 200 : 50;
-		int goldReward = (int)Math.Ceiling(unitCost * 1.25);
-		PlayerGold += goldReward;
-	  
-		// Spawna guld-popup
-		GoldPopups.Add(new GoldPopup(enemy.PositionX, enemy.PositionY - 30, goldReward));
-	  
-		   // Markera att stenen träffade
-	  rock.IsActive = false;
-	  rockHitEnemy = true;
-		break;
-			 }
-	 }
-		}
-		
-		// Ta bort stenen om den träffade en fiende
-		if (rockHitEnemy)
+	
+	// Skapa en kopia av listan för att undvika index-problem
+	var enemiesCopy = new List<Unit>(EnemyUnits);
+	
+	foreach (var enemy in enemiesCopy)
+	{
+		if (Utils.Intersects(rock.Hitbox, enemy.Hitbox))
 		{
-		    FallingRocks.RemoveAt(i);
+			// Sätt HP till 0 istället för instant kill så dödsanimation kan spelas
+			if (!enemy.IsDying)  // Träffa bara levande enheter
+			{
+				// Ge guld och spawna popup DIREKT när fienden dör (FÖRE dödsanimationen)
+				int unitCost = enemy is Soldier ? 50 : enemy is RangedUnit ? 80 : enemy is CavalryUnit ? 200 : 50;
+				int goldReward = (int)Math.Ceiling(unitCost * 1.25);
+				PlayerGold += goldReward;
+				
+				// Spawna guld-popup
+				GoldPopups.Add(new GoldPopup(enemy.PositionX, enemy.PositionY - 30, goldReward));
+				
+				// Sätt HP till 0 EFTER vi har gett guld (så vi kan använda enemy.PositionX)
+				enemy.HP = 0;  // Detta triggar dödsanimationen i nästa Update()
+				
+				// Markera att stenen träffade
+				rock.IsActive = false;
+				rockHitEnemy = true;
+				break;
+			}
 		}
+	}
+	
+	// Ta bort stenen om den träffade en fiende
+	if (rockHitEnemy)
+	{
+		FallingRocks.RemoveAt(i);
+	}
 		}
 }
 
